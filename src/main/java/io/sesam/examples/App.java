@@ -29,7 +29,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -80,19 +79,15 @@ public class App {
     }
     
     public static CloseableHttpClient makeHttpClient() {
-        String authType = getStringEnv("AUTH_TYPE", "basic");
-        String domain = System.getenv("DOMAIN");
-        String username = System.getenv("USERNAME");
-        String password = System.getenv("PASSWORD");
-        
         ClientBuilder builder = new ClientBuilder();
         builder.setSocketTimeout(getIntEnv("SOCKET_TIMEOUT", 120) * 1000);  // 2 minutes
         builder.setConnectionTimeout(getIntEnv("CONNECTION_TIMEOUT", 10) * 1000);  // 10 seconds
-        builder.setUsername(username);
-        builder.setPassword(password);
-        builder.setDomain(domain);
-        builder.setAuthType(authType);
-        return builder.makeClient();
+        builder.setUsername(System.getenv("USERNAME"));
+        builder.setPassword(System.getenv("PASSWORD"));
+        builder.setDomain(System.getenv("DOMAIN"));
+        builder.setWorkstation(System.getenv("WORKSTATION"));
+        builder.setAuthType(getStringEnv("AUTH_TYPE", "basic"));
+        return builder.create();
     }
     
     public static void main(String[] args) {

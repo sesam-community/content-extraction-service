@@ -17,41 +17,6 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
  */
 public class ClientBuilder {
 
-    // ----- Static utility methods
-
-    /**
-     * Makes a client with the default configuration, set up to use
-     * basic authentication using the given user name and password
-     * against all domains. If no username and password are given, it
-     * doesn't authenticate.
-     */
-    public static CloseableHttpClient makeClient(String username, String password) {
-        return makeClient(username, password, null, "basic");
-    }
-
-    /**
-     * Makes a client with the default configuration, set up to use
-     * the configured type of authentication using the given user name
-     * and password against the given domain. If no username and
-     * password are given, it doesn't authenticate. Setting domain to
-     * null means authenticating against all domains.
-     * @param authtype the authentication mechanism to use. Supported
-     *        values are "basic", "digest" and "ntlm".
-     */
-    public static CloseableHttpClient makeClient(String username,
-                                        String password,
-                                        String domain,
-                                        String authtype) {
-        ClientBuilder builder = new ClientBuilder();
-        builder.setUsername(username);
-        builder.setPassword(password);
-        builder.setDomain(domain);
-        builder.setAuthType(authtype);
-        return builder.makeClient();
-    }
-
-    // ----- The full builder
-
     private String username;
     private String password;
     private String workstation;
@@ -131,7 +96,7 @@ public class ClientBuilder {
     /**
      * Returns an HTTP client configured as requested.
      */
-    public CloseableHttpClient makeClient() {
+    public CloseableHttpClient create() {
         // Making a connection manager so that HttpClient will use
         // persistent HTTP connections.  Must use the pooling manager,
         // because multiple threads can use the same client at the same
