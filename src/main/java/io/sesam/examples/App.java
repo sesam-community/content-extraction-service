@@ -106,14 +106,15 @@ public class App {
         String targetProperty = getStringEnv("TARGET_PROPERTY", "_content");
         
         post("/transform", (req, res) -> {
+            // parse the request body into JSON elements
             JsonParser parser = new JsonParser();
             JsonElement root = null;
             try (Reader payload = new InputStreamReader(req.raw().getInputStream(), "utf-8")) {
                 root = parser.parse(payload);
             }
-            
+
+            // get hold of the list of entities
             List<JsonObject> entities = new ArrayList<>();
-                    
             if (root.isJsonArray()) {
                 JsonArray jsonArray = root.getAsJsonArray();
                 for (JsonElement element : jsonArray) {
@@ -121,42 +122,50 @@ public class App {
                         entities.add(element.getAsJsonObject());
                     }
                 }                
+            } else if (root.isJsonObject()) {
+                entities.add(root.getAsJsonObject());
             }
-            int size = entities.size();
-            CountDownLatch doneSignal = new CountDownLatch(size);
+            
+            // process entities in parallel
             AtomicBoolean failed = new AtomicBoolean(false);
-            
-            for (int i=0; i < size;  i++) {
-                // terminate loop if we're in failure mode
-                if (failed.get()) {
-                    break;
-                }
-                JsonObject entity = entities.get(i);
-                Callable<JsonObject> task = () -> {
-                    try {
-                        JsonElement urlElement = entity.get(sourceProperty);
-                        if (urlElement.isJsonPrimitive()) {
-                            String url = urlElement.getAsString();
-                            String content = extractContent(client, tika, url);
-                            entity.addProperty(targetProperty, content);
-                        }
-                    } catch (Exception e) {
-                        String json = gson.toJson(entity);
-                        log.error(String.format("Non-recoverable error while extracting content from %s", json), e);
-                        failed.set(true);
-                    } finally {
-                        doneSignal.countDown();
+            int size = entities.size();
+            if (size > 0) {
+                CountDownLatch doneSignal = new CountDownLatch(size);
+
+                for (int i=0; i < size;  i++) {
+                    // terminate loop if we're in failure mode
+                    if (failed.get()) {
+                        break;
                     }
-                    return entity;
-                };
-                executor.submit(task);
-            }
-            while (!failed.get()) {
-                if (doneSignal.await(100, TimeUnit.MILLISECONDS)) {
-                    break;
+                    JsonObject entity = entities.get(i);
+                    Callable<JsonObject> task = () -> {
+                        try {
+                            JsonElement urlElement = entity.get(sourceProperty);
+                            if (urlElement != null && urlElement.isJsonPrimitive()) {
+                                String url = urlElement.getAsString();
+                                String content = extractContent(client, tika, url);
+                                entity.addProperty(targetProperty, content);
+                            }
+                        } catch (Exception e) {
+                            String json = gson.toJson(entity);
+                            log.error(String.format("Non-recoverable error while extracting content from %s", json), e);
+                            failed.set(true);
+                        } finally {
+                            doneSignal.countDown();
+                        }
+                        return entity;
+                    };
+                    executor.submit(task);
+                }
+                // wait until all entities are done, or until we've entered failure mode
+                while (!failed.get()) {
+                    if (doneSignal.await(100, TimeUnit.MILLISECONDS)) {
+                        break;
+                    }
                 }
             }
             
+            // output the response
             if (failed.get()) {
                 res.type("text/plain");
                 res.status(500);
@@ -168,19 +177,12 @@ public class App {
                 res.type("application/json");
                 Writer writer = res.raw().getWriter();
                 writer.append("[");
-    
                 for (int i=0; i < size;  i++) {
-                    JsonObject entity = entities.get(i);
-                    JsonElement interrupted = entity.get("_interrupted");
-                    if (interrupted != null) {
-                        
-                    }
                     if (i > 0) {
                         writer.append(",");
                     }
-                    gson.toJson(entity, writer);
+                    gson.toJson(entities.get(i), writer);
                 }
-    
                 writer.append("]");
                 writer.flush();
             }

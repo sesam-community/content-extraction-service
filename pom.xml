@@ -36,8 +36,7 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
-      <version>4.3.6</version>
-      
+      <version>4.5.2</version>
       <exclusions>
         <!-- we cut this logging implementation, opting for the SLF4J
              variant below instead, allowing us to handle logging for
@@ -55,7 +54,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-  
   <build>
     <plugins>
       <plugin>
