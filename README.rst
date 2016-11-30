@@ -49,32 +49,32 @@ Configuration
 
 You can configure the service with the following environment variables:
 
-=====================  =====================================================================================   ==========
-Variable               Description                                                                             Default
+======================  =====================================================================================   ===========
+Variable                Description                                                                             Default
 
+``SOURCE_PROPERTY``     The name of the property holding the source url.                                        "url"
 
-``SOURCE_PROPERTY``    The name of the property holding the source url.                                        "url"
+``TARGET_PROPERTY``     The name of the property that will hold the extracted content.                          "_content"
 
-``TARGET_PROPERTY``    The name of the property that will hold the extracted content.                          "_content"
+``USERNAME``            Username for authentication needed to download the file represented by the              null
+                        ``SOURCE_PROPERTY``. If not set or null, no authentication will be attempted.
 
-``USERNAME``           Username for authentication needed to download the file represented by the              null
-                       ``SOURCE_PROPERTY``. If not set or null, no authentication will be attempted.
+``PASSWORD``            The password for the ``USERNAME``. Only applicable if ``USERNAME`` is set.              null
 
-``PASSWORD``           The password for the ``USERNAME``. Only applicable if ``USERNAME`` is set.              null
+``AUTH_TYPE``           The authentication method to use if ``USERNAME`` and ``PASSWORD`` is both set.          "basic"
+                        This is an enum with the following valid values (case sensitive): "basic",
+                        "digest" and "ntlm". If "ntlm" is specified, you can provide additional information
+                        in ``WORKSTATION`` and/or ``DOMAIN``.
 
-``AUTH_TYPE``          The authentication method to use if ``USERNAME`` and ``PASSWORD`` is both set.
-                       This is an enum with the following valid values (case sensitive): "basic",
-                       "digest" and "ntlm". If "ntlm" is specified, you can provide additional information
-                       in ``WORKSTATION`` and/or ``DOMAIN``.                                                   "basic"
+``WORKSTATION``         Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         null
 
-``WORKSTATION``        Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         null
+``DOMAIN``              Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         null
 
-``DOMAIN``             Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         null
+``SOCKET_TIMEOUT``      TCP socket timeout value in seconds.                                                    "120" 
 
-``SOCKET_TIMEOUT``     TCP socket timeout value in seconds.                                                    "120" 
+``CONNECTION_TIMEOUT``  Connection timout value in seconds.                                                     "10"
 
-``CONNECTION_TIMEOUT`` Connection timout value in seconds.                                                     "10"
+======================  =====================================================================================   ===========
 
-=====================  =====================================================================================   ==========
 
 When running in Docker you can either specify this in a file (see https://docs.docker.com/compose/env-file/) or on the command line with "docker run .. -e VAR1=VAL1 -e VAR2=VAL2 .."
