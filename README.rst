@@ -52,7 +52,8 @@ You can configure the service with the following environment variables:
 ======================  =====================================================================================   ===========
 Variable                Description                                                                             Default
 
-``SOURCE_PROPERTY``     The name of the property holding the source url.                                        "url"
+``SOURCE_PROPERTY``     The name of the property holding the source url. Note that the URL must be *encoded*.   "url"
+                        Supported URL schemes are: 'http' and 'https'.
 
 ``TARGET_PROPERTY``     The name of the property that will hold the extracted content.                          "_content"
 
