@@ -57,25 +57,25 @@ Variable                Description                                             
 
 ``TARGET_PROPERTY``     The name of the property that will hold the extracted content.                          "_content"
 
-``USERNAME``            Username for authentication needed to download the file represented by the              null
+``USERNAME``            Username for authentication needed to download the file represented by the              Not set
                         ``SOURCE_PROPERTY``. If not set or null, no authentication will be attempted.
 
-``PASSWORD``            The password for the ``USERNAME``. Only applicable if ``USERNAME`` is set.              null
+``PASSWORD``            The password for the ``USERNAME``. Only applicable if ``USERNAME`` is set.              Not set
 
 ``AUTH_TYPE``           The authentication method to use if ``USERNAME`` and ``PASSWORD`` is both set.          "basic"
                         This is an enum with the following valid values (case sensitive): "basic",
                         "digest" and "ntlm". If "ntlm" is specified, you can provide additional information
                         in ``WORKSTATION`` and/or ``DOMAIN``.
 
-``WORKSTATION``         Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         null
+``WORKSTATION``         Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         Not set
 
-``DOMAIN``              Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         null
+``DOMAIN``              Used in conjuction with "ntlm" as ``AUTH_TYPE``                                         Not set
 
 ``SOCKET_TIMEOUT``      TCP socket timeout value in seconds.                                                    "120" 
 
 ``CONNECTION_TIMEOUT``  Connection timout value in seconds.                                                     "10"
 
-``TRUST_EVERYTHING``    Disable TLS certificate and hostname verification. Note that this is insecure.          false
+``TRUST_EVERYTHING``    Disable TLS certificate and hostname verification. Note that this is insecure.          "false"
 
 ``THREADS``             The number of worker threads to use for content download and extraction.                "8"
                         Note that increasing this value will also increase memory and CPU usage. If the
