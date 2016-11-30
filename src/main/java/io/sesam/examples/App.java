@@ -7,8 +7,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.UnsupportedSchemeException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
@@ -33,30 +38,54 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public class App {
-    
+
     static Logger log = LoggerFactory.getLogger(App.class);
 
-    public static String extractContent(CloseableHttpClient client, Tika tika, String url) throws ClientProtocolException, IOException {
-        try (CloseableHttpResponse response = client.execute(new HttpGet(url))) {
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode >= 200 && statusCode < 300) {
-                try (InputStream content = response.getEntity().getContent()) {
-                    try {
-                        return tika.parseToString(content);
-                    } catch (TikaException e) {
-                        log.error(String.format("Unable to extract content from '%s'", url), e);
-                        return null;
-                    }
-                }
-            } else if (statusCode == 404) {
-                log.warn(String.format("URL not found: '%s'", url));
-                return null;
-            } else {
-                throw new IOException(String.format("URL '%s' returned status code: %d", url, statusCode)); 
-            }
+    static final Set<String> SUPPORTED_SCHEMES = new HashSet<String>() {{
+        add("http");
+        add("https");
+    }};
+
+    public static URI normalizeURL(String url) throws URISyntaxException {
+        // normalize
+        URI uri;
+        if (url != null && url.startsWith("~r")) {
+            uri = new URI(url.substring(2));
+        } else {
+            uri = new URI(url);
         }
+        if (!SUPPORTED_SCHEMES.contains(uri.getScheme())) {
+            throw new URISyntaxException(url, "Unsupported URL schema");
+        }
+        return uri;
     }
-    
+
+    public static String extractContent(CloseableHttpClient client, Tika tika, String url)
+            throws ClientProtocolException, IOException {
+        try {
+            URI uri = normalizeURL(url);
+            try (CloseableHttpResponse response = client.execute(new HttpGet(uri))) {
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode >= 200 && statusCode < 300) {
+                    try (InputStream content = response.getEntity().getContent()) {
+                        try {
+                            return tika.parseToString(content);
+                        } catch (TikaException e) {
+                            log.error(String.format("Unable to extract content from '%s'", url), e);
+                        }
+                    }
+                } else if (statusCode == 404) {
+                    log.warn(String.format("URL not found: '%s'", url));
+                } else {
+                    throw new IOException(String.format("URL '%s' returned status code: %d", url, statusCode));
+                }
+            }
+        } catch (UnsupportedSchemeException | URISyntaxException e) {
+            log.warn(String.format("Invalid URL: '%s'", url));
+        }
+        return null;
+    }
+
     private static String getStringEnv(String variable, String defaultValue) {
         String value = System.getenv(variable);
         if (value instanceof String) {
@@ -65,7 +94,7 @@ public class App {
             return defaultValue;
         }
     }
-    
+
     private static int getIntEnv(String variable, int defaultValue) {
         String value = System.getenv(variable);
         if (value == null) {
@@ -77,7 +106,7 @@ public class App {
             return defaultValue;
         }
     }
-    
+
     public static CloseableHttpClient makeHttpClient() {
         ClientBuilder builder = new ClientBuilder();
         builder.setSocketTimeout(getIntEnv("SOCKET_TIMEOUT", 120) * 1000);  // 2 minutes
@@ -89,17 +118,17 @@ public class App {
         builder.setAuthType(getStringEnv("AUTH_TYPE", "basic"));
         return builder.create();
     }
-    
+
     public static void main(String[] args) {
         CloseableHttpClient client = makeHttpClient();
         Gson gson = new GsonBuilder().serializeNulls().create();
         Tika tika = new Tika();
-        
+
         ExecutorService executor = Executors.newFixedThreadPool(getIntEnv("THREADS", 8));
-        
+
         String sourceProperty = getStringEnv("SOURCE_PROPERTY", "url");
         String targetProperty = getStringEnv("TARGET_PROPERTY", "_content");
-        
+
         post("/transform", (req, res) -> {
             // parse the request body into JSON elements
             JsonParser parser = new JsonParser();
@@ -120,7 +149,7 @@ public class App {
             } else if (root.isJsonObject()) {
                 entities.add(root.getAsJsonObject());
             }
-            
+
             // process entities in parallel
             AtomicBoolean failed = new AtomicBoolean(false);
             int size = entities.size();
@@ -159,7 +188,7 @@ public class App {
                     }
                 }
             }
-            
+
             // output the response
             if (failed.get()) {
                 res.type("text/plain");
