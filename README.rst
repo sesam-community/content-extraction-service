@@ -8,7 +8,7 @@ the `HTTP transform <https://docs.sesam.io/configuration.html#the-http-transform
 It downloads files via a given URL and extracts text information from the downloaded content using the Apache Tika library
 (http://tika.apache.org/). The resulting text is inserted as a string property into the entities and returned to the POSTer.
 
-You will need a working Java 8 develop environment and Maven 3.x to build this service.
+You will need a working Java 8 dev environment and Maven 3.x to build this service.
 
 Running in Docker
 -----------------
@@ -24,7 +24,7 @@ Get the IP from docker:
 
 ::
 
-  docker inspect -f '{{.Name}} - {{.NetworkSettings.IPAddress }}' content-extraction-servic
+  docker inspect -f '{{.Name}} - {{.NetworkSettings.IPAddress }}' content-extraction-service
 
 Example
 -------
