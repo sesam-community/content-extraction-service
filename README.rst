@@ -76,6 +76,10 @@ Variable                Description                                             
 
 ``TRUST_EVERYTHING``    Disable TLS certificate and hostname verification. Note that this is insecure.          false
 
+``THREADS``             The number of worker threads to use for content download and extraction.                "8"
+                        Note that increasing this value will also increase memory and CPU usage. If the
+                        value set increases resource usage beyond the capactity of the machine running the
+                        service the service process may be terminated.
 ======================  =====================================================================================   ===========
 
 
