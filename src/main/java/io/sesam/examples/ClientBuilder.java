@@ -1,21 +1,44 @@
 package io.sesam.examples;
 
 
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.NTCredentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.config.RequestConfig.Builder;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.TrustStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A builder class for configuring HTTP client objects.
  */
 public class ClientBuilder {
+
+    static Logger log = LoggerFactory.getLogger(ClientBuilder.class);
 
     private String username;
     private String password;
@@ -25,7 +48,15 @@ public class ClientBuilder {
     private int socketTimeout = 1000 * 60 * 2; // two minutes
     private int connectionTimeout = 10000;
     private int connectionRequestTimeout = 5000;
-    private boolean compression = true; // on by default
+    private boolean compression = true;
+    private boolean trustEverything = false;
+
+    /**
+     * Set to true you want to trust SSL and do no host verification.
+     */
+    public void setTrustEverything(boolean trustEverything) {
+        this.trustEverything = trustEverything;
+    }
 
     /**
      * Sets the user name to use when authenticating.
@@ -97,52 +128,77 @@ public class ClientBuilder {
      * Returns an HTTP client configured as requested.
      */
     public CloseableHttpClient create() {
-        // Making a connection manager so that HttpClient will use
-        // persistent HTTP connections.  Must use the pooling manager,
-        // because multiple threads can use the same client at the same
-        // time.
-        PoolingHttpClientConnectionManager mgr = new PoolingHttpClientConnectionManager();
-        mgr.setDefaultMaxPerRoute(30);
-
-        RequestConfig rc = RequestConfig.custom()
+        Builder rcBuilder = RequestConfig.custom()
                 .setConnectionRequestTimeout(connectionRequestTimeout)
                 .setConnectTimeout(connectionTimeout)
-                .setSocketTimeout(socketTimeout).build();
+                .setSocketTimeout(socketTimeout);
 
         HttpClientBuilder builder = HttpClientBuilder.create();
-        builder.setConnectionManager(mgr);
-        builder.setDefaultRequestConfig(rc);
 
-        // we disable compression because Virtuoso cuts the connection if we
-        // use gzip compression
+        Registry<ConnectionSocketFactory> registry = null;
+        if (trustEverything) {
+            try {
+                // Trust all certificates and do no hostname verification
+                SSLContext sslContext = new SSLContextBuilder().loadTrustMaterial(null, new TrustStrategy() {
+                    public boolean isTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+                        return true;
+                    }
+                }).build();
+                builder.setSSLContext(sslContext);
+
+                HostnameVerifier hostnameVerifier = new NoopHostnameVerifier();
+
+                SSLConnectionSocketFactory sslSocketFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
+                registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                        .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                        .register("https", sslSocketFactory)
+                        .build();
+
+            } catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException e) {
+                log.error("Not able to set up SSLContext", e);
+            }
+        }
+        if (registry == null) {
+            registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                    .register("https", SSLConnectionSocketFactory.getSocketFactory())
+                    .build();
+        }
+
         if (!compression)
             builder.disableContentCompression();
 
         switch (authtype) {
-            case "ntlm":
-                CredentialsProvider ntlmCreds = new BasicCredentialsProvider();
-                NTCredentials creds = new NTCredentials(username, password, workstation, domain);
-                ntlmCreds.setCredentials(AuthScope.ANY, creds);
-                builder.setDefaultCredentialsProvider(ntlmCreds);
-                break;
-            case "basic":
-                if (username != null && password != null) {
-                    BasicCredentialsProvider basicCreds = new BasicCredentialsProvider();
-                    basicCreds.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
-                    builder.setDefaultCredentialsProvider(basicCreds);
-                }
-                break;
-            case "digest":
-                if (username != null && password != null) {
-                    BasicCredentialsProvider basicCreds = new BasicCredentialsProvider();
-                    basicCreds.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT,
+        case "ntlm":
+            CredentialsProvider ntlmCreds = new BasicCredentialsProvider();
+            NTCredentials creds = new NTCredentials(username, password, workstation, domain);
+            ntlmCreds.setCredentials(AuthScope.ANY, creds);
+            builder.setDefaultCredentialsProvider(ntlmCreds);
+            rcBuilder.setTargetPreferredAuthSchemes(Arrays.asList(AuthSchemes.NTLM));
+            break;
+        case "basic":
+            if (username != null && password != null) {
+                BasicCredentialsProvider basicCreds = new BasicCredentialsProvider();
+                basicCreds.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
+                builder.setDefaultCredentialsProvider(basicCreds);
+            }
+            break;
+        case "digest":
+            if (username != null && password != null) {
+                BasicCredentialsProvider basicCreds = new BasicCredentialsProvider();
+                basicCreds.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT,
                         AuthScope.ANY_REALM, AuthSchemes.DIGEST), new UsernamePasswordCredentials(username, password));
-                    builder.setDefaultCredentialsProvider(basicCreds);
-                }
-                break;
-            default:
-                break;
+                builder.setDefaultCredentialsProvider(basicCreds);
+            }
+            break;
+        default:
+            break;
         }
+        builder.setDefaultRequestConfig(rcBuilder.build());
+
+        PoolingHttpClientConnectionManager mgr = new PoolingHttpClientConnectionManager(registry);
+        mgr.setDefaultMaxPerRoute(30);
+        builder.setConnectionManager(mgr);
 
         return builder.build();
     }

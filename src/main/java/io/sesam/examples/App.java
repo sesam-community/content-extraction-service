@@ -20,6 +20,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -80,7 +82,7 @@ public class App {
                     throw new IOException(String.format("URL '%s' returned status code: %d", url, statusCode));
                 }
             }
-        } catch (UnsupportedSchemeException | URISyntaxException e) {
+        } catch (UnsupportedSchemeException | URISyntaxException | SSLHandshakeException e) {
             log.warn(String.format("Invalid URL: '%s'", url));
         }
         return null;
@@ -107,6 +109,14 @@ public class App {
         }
     }
 
+    private static boolean getBooleanEnv(String variable, boolean defaultValue) {
+        String value = System.getenv(variable);
+        if (value == null) {
+            return defaultValue;
+        }
+        return value.equalsIgnoreCase("true");
+    }
+
     public static CloseableHttpClient makeHttpClient() {
         ClientBuilder builder = new ClientBuilder();
         builder.setSocketTimeout(getIntEnv("SOCKET_TIMEOUT", 120) * 1000);  // 2 minutes
@@ -116,6 +126,7 @@ public class App {
         builder.setDomain(System.getenv("DOMAIN"));
         builder.setWorkstation(System.getenv("WORKSTATION"));
         builder.setAuthType(getStringEnv("AUTH_TYPE", "basic"));
+        builder.setTrustEverything(getBooleanEnv("TRUST_EVERYTHING", false));
         return builder.create();
     }
 

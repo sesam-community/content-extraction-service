@@ -74,6 +74,8 @@ Variable                Description                                             
 
 ``CONNECTION_TIMEOUT``  Connection timout value in seconds.                                                     "10"
 
+``TRUST_EVERYTHING``    Disable TLS certificate and hostname verification. Note that this is insecure.          false
+
 ======================  =====================================================================================   ===========
 
 
