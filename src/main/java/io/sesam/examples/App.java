@@ -66,7 +66,9 @@ public class App {
             throws ClientProtocolException, IOException {
         try {
             URI uri = normalizeURL(url);
-            try (CloseableHttpResponse response = client.execute(new HttpGet(uri))) {
+            HttpGet request = new HttpGet(uri);
+            request.addHeader("Connection", "Keep-Alive");
+            try (CloseableHttpResponse response = client.execute(request)) {
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode >= 200 && statusCode < 300) {
                     try (InputStream content = response.getEntity().getContent()) {
