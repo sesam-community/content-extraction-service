@@ -81,6 +81,9 @@ Variable                Description                                             
                         Note that increasing this value will also increase memory and CPU usage. If the
                         value set increases resource usage beyond the capactity of the machine running the
                         service the service process may be terminated.
+
+``LOGLEVEL``            Sets the log level to use. All logs are written to stdout.                              "info"
+                        Must be one of "trace", "debug", "info", "warn", or "error")       
 ======================  =====================================================================================   ===========
 
 
