@@ -2,11 +2,14 @@
 Content extraction microservice
 ===============================
 
-A java micro service for transforming a JSON entity stream. This service is designed to be used as a microservice system with
+A Java microservice for transforming a JSON entity stream. This service is designed to be used as a
+`microservice system <https://docs.sesam.io/configuration.html#the-microservice-system-experimental>`_ for
 the `HTTP transform <https://docs.sesam.io/configuration.html#the-http-transform>`_ in a Sesam service instance.
 
-It downloads files via a given URL and extracts text information from the downloaded content using the Apache Tika library
-(http://tika.apache.org/). The resulting text is inserted as a string property into the entities and returned to the POSTer.
+It decodes binary content or downloads files via URLs, and then
+extracts textual information using the Apache Tika library
+(http://tika.apache.org/). The resulting text is inserted as a string
+property into the entities and returned to the client.
 
 You will need a working Java 8 dev environment and Maven 3.x to build this service.
 
@@ -52,11 +55,12 @@ You can configure the service with the following environment variables:
 ======================  =====================================================================================   ===========
 Variable                Description                                                                             Default
 
-``SOURCE_PROPERTY``     The name of the property holding the source url. Note that the URL must be *encoded*.   "url"
-                        Supported URL schemes are: 'http' and 'https'. The values must be URLs (e.g.
-                        ``http://example.org/my.doc``), Transit-encoded URLs (e.g.
-                        ``~rhttp://example.org/my.doc``) or Transit-encoded Base64-encoded bytes
-                        (e.g. "~bYWJj").
+``SOURCE_PROPERTY``     The name of the property holding the source value. Note that the URL must               "url"
+                        be *encoded*.
+                        Supported URL schemes are: 'http' and 'https'.
+                        The values must be URLs (e.g. ``http://example.org/my.doc``), Transit-encoded URLs
+                        (e.g. ``~rhttp://example.org/my.doc``) or Transit-encoded Base64-encoded bytes
+                        (e.g. ``~bYWJj``).
 
 ``TARGET_PROPERTY``     The name of the property that will hold the extracted content.                          "_content"
 
