@@ -53,7 +53,10 @@ You can configure the service with the following environment variables:
 Variable                Description                                                                             Default
 
 ``SOURCE_PROPERTY``     The name of the property holding the source url. Note that the URL must be *encoded*.   "url"
-                        Supported URL schemes are: 'http' and 'https'.
+                        Supported URL schemes are: 'http' and 'https'. The values must be URLs (e.g.
+                        ``http://example.org/my.doc``), Transit-encoded URLs (e.g.
+                        ``~rhttp://example.org/my.doc``) or Transit-encoded Base64-encoded bytes
+                        (e.g. "~bYWJj").
 
 ``TARGET_PROPERTY``     The name of the property that will hold the extracted content.                          "_content"
 

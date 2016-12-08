@@ -1,7 +1,22 @@
 package io.sesam.examples;
 
-import static spark.Spark.post;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.UnsupportedSchemeException;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLHandshakeException;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -10,6 +25,7 @@ import java.io.Writer;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,24 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.net.ssl.SSLHandshakeException;
-
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.conn.UnsupportedSchemeException;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.tika.Tika;
-import org.apache.tika.exception.TikaException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import static spark.Spark.post;
 
 public class App {
 
@@ -51,7 +50,7 @@ public class App {
     public static URI normalizeURL(String url) throws URISyntaxException {
         // normalize
         URI uri;
-        if (url != null && url.startsWith("~r")) {
+        if (url.startsWith("~r")) {
             uri = new URI(url.substring(2));
         } else {
             uri = new URI(url);
@@ -62,30 +61,46 @@ public class App {
         return uri;
     }
 
-    public static String extractContent(CloseableHttpClient client, Tika tika, String url)
-            throws ClientProtocolException, IOException {
-        try {
-            URI uri = normalizeURL(url);
-            HttpGet request = new HttpGet(uri);
-            request.addHeader("Connection", "Keep-Alive");
-            try (CloseableHttpResponse response = client.execute(request)) {
-                int statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode >= 200 && statusCode < 300) {
-                    try (InputStream content = response.getEntity().getContent()) {
-                        try {
-                            return tika.parseToString(content);
-                        } catch (TikaException e) {
-                            log.error(String.format("Unable to extract content from '%s'", url), e);
+    public static String extractContent(CloseableHttpClient client, Tika tika, String source)
+            throws IOException {
+        if (source != null) {
+            if (source.startsWith("~b")) {
+                // Decode embedded bytes
+                String b64_string = source.substring(2);
+                try {
+                    byte[] decoded = Base64.getDecoder().decode(b64_string);
+                    try (InputStream content = new ByteArrayInputStream(decoded)) {
+                        return tika.parseToString(content);
+                    } catch (TikaException e) {
+                        log.error(String.format("Unable to extract content from '%s'", source), e);
+                    }
+                } catch (IllegalArgumentException e) {
+                    log.warn(String.format("Invalid Base64 encoded string: '%s'", b64_string));
+                }
+            } else {
+                // Download content from URL
+                try {
+                    URI uri = normalizeURL(source);
+                    HttpGet request = new HttpGet(uri);
+                    request.addHeader("Connection", "Keep-Alive");
+                    try (CloseableHttpResponse response = client.execute(request)) {
+                        int statusCode = response.getStatusLine().getStatusCode();
+                        if (statusCode >= 200 && statusCode < 300) {
+                            try (InputStream content = response.getEntity().getContent()) {
+                                return tika.parseToString(content);
+                            } catch (TikaException e) {
+                                log.error(String.format("Unable to extract content from '%s'", source), e);
+                            }
+                        } else if (statusCode == 404) {
+                            log.warn(String.format("URL not found: '%s'", source));
+                        } else {
+                            throw new IOException(String.format("URL '%s' returned status code: %d", source, statusCode));
                         }
                     }
-                } else if (statusCode == 404) {
-                    log.warn(String.format("URL not found: '%s'", url));
-                } else {
-                    throw new IOException(String.format("URL '%s' returned status code: %d", url, statusCode));
+                } catch (UnsupportedSchemeException | URISyntaxException | SSLHandshakeException e) {
+                    log.warn(String.format("Invalid URL: '%s'", source));
                 }
             }
-        } catch (UnsupportedSchemeException | URISyntaxException | SSLHandshakeException e) {
-            log.warn(String.format("Invalid URL: '%s'", url));
         }
         return null;
     }
@@ -177,10 +192,10 @@ public class App {
                     JsonObject entity = entities.get(i);
                     Callable<JsonObject> task = () -> {
                         try {
-                            JsonElement urlElement = entity.get(sourceProperty);
-                            if (urlElement != null && urlElement.isJsonPrimitive()) {
-                                String url = urlElement.getAsString();
-                                String content = extractContent(client, tika, url);
+                            JsonElement sourceElement = entity.get(sourceProperty);
+                            if (sourceElement != null && sourceElement.isJsonPrimitive()) {
+                                String source = sourceElement.getAsString();
+                                String content = extractContent(client, tika, source);
                                 entity.addProperty(targetProperty, content);
                             }
                         } catch (Exception e) {
