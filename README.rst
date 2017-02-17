@@ -6,6 +6,10 @@ A Java microservice for transforming a JSON entity stream. This service is desig
 `microservice system <https://docs.sesam.io/configuration.html#the-microservice-system-experimental>`_ for
 the `HTTP transform <https://docs.sesam.io/configuration.html#the-http-transform>`_ in a Sesam service instance.
 
+.. image:: https://travis-ci.org/sesam-community/content-extraction-service.svg?branch=master
+   :alt: Build Status
+   :target: https://travis-ci.org/sesam-community/content-extraction-service
+
 It decodes binary content or downloads files via URLs, and then
 extracts textual information using the Apache Tika library
 (http://tika.apache.org/). The resulting text is inserted as a string
